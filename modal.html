@@ -1,0 +1,80 @@
+<div class="persona-blocks-modal">
+    <div class="pb-header">
+        <div class="pb-title">
+            <i class="fa-solid fa-id-card"></i>
+            <span>Persona Blocks</span>
+        </div>
+        <div class="pb-header-actions">
+            <button id="pb_export" class="menu_button" title="Export Persona Blocks">
+                <i class="fa-solid fa-file-export"></i>
+            </button>
+            <button id="pb_import_button" class="menu_button" title="Import Persona Blocks">
+                <i class="fa-solid fa-file-import"></i>
+            </button>
+            <input id="pb_import_file" type="file" accept=".json" hidden>
+        </div>
+    </div>
+
+    <div class="pb-topbar">
+        <label class="pb-control">
+            <span>Persona</span>
+            <select id="pb_persona_select" class="text_pole"></select>
+        </label>
+        <label class="pb-control">
+            <span>Template</span>
+            <select id="pb_template_select" class="text_pole"></select>
+        </label>
+        <div class="pb-template-actions">
+            <button id="pb_template_new" class="menu_button" title="New Template">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <button id="pb_template_rename" class="menu_button" title="Rename Template">
+                <i class="fa-solid fa-pencil"></i>
+            </button>
+            <button id="pb_template_duplicate" class="menu_button" title="Duplicate Template">
+                <i class="fa-solid fa-clone"></i>
+            </button>
+            <button id="pb_template_delete" class="menu_button" title="Delete Template">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="pb-workspace">
+        <section class="pb-editor">
+            <div class="pb-section-toolbar">
+                <div class="pb-section-title">Fields</div>
+                <button id="pb_field_add" class="menu_button" title="Add Field">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+            <div id="pb_fields"></div>
+        </section>
+
+        <aside class="pb-preview">
+            <div class="pb-persona-card">
+                <img id="pb_selected_persona_avatar" alt="">
+                <div>
+                    <div id="pb_selected_persona_name" class="pb-persona-name"></div>
+                    <div id="pb_preview_meta" class="text_muted"></div>
+                </div>
+            </div>
+
+            <div class="pb-section-toolbar">
+                <div class="pb-section-title">Preview</div>
+                <button id="pb_import_current" class="menu_button" title="Import Current Description">
+                    <i class="fa-solid fa-download"></i>
+                </button>
+            </div>
+
+            <textarea id="pb_preview_text" class="text_pole" readonly rows="18"></textarea>
+
+            <div class="pb-apply-row">
+                <button id="pb_apply" class="menu_button menu_button_icon">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Apply to Persona Description</span>
+                </button>
+            </div>
+        </aside>
+    </div>
+</div>
