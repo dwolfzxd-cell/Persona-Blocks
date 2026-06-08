@@ -12,6 +12,7 @@ SillyTavern stores a persona as the user's character, with one native `Persona D
 - Lets each persona keep multiple blocks per field.
 - Allows multiple blocks to be enabled at the same time.
 - Shows a live preview of the composed persona description.
+- Lets you resize the modal and drag the divider between the editor and preview columns.
 - Writes to SillyTavern's native `Persona Description` only when you click `Apply to Persona Description`.
 
 Block titles are only for organizing the modal. They are not included in the composed persona text.
@@ -26,6 +27,8 @@ Block titles are only for organizing the modal. They are not included in the com
 6. Toggle blocks on or off.
 7. Check the preview.
 8. Click `Apply to Persona Description` when you want to update the real SillyTavern persona description.
+
+You can drag the modal's lower-right resize handle to change its size, and drag the vertical divider between `Fields` and `Preview` to rebalance the columns.
 
 The preview is composed in template field order:
 
@@ -67,6 +70,8 @@ extension_settings['Persona-Blocks']
 ```
 
 That means the block data is separate from SillyTavern's native persona backup. Use the export/import buttons in the Persona Blocks modal when you want to back up or move Persona Blocks data.
+
+The same settings also store modal layout preferences, such as the modal size and preview column width.
 
 The extension listens for persona events:
 

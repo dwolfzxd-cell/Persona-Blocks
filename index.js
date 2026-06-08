@@ -9,6 +9,18 @@ const MODULE_NAME = 'Persona-Blocks';
 const SETTINGS_VERSION = 1;
 const DEFAULT_TEMPLATE_ID = 'default-persona';
 const DEFAULT_FIELDS = ['Appearance', 'Career', 'Background'];
+const DEFAULT_LAYOUT = {
+    modalWidth: null,
+    modalHeight: null,
+    previewWidth: 380,
+};
+const MIN_MODAL_WIDTH = 720;
+const MIN_MODAL_HEIGHT = 520;
+const MIN_EDITOR_WIDTH = 280;
+const MIN_PREVIEW_WIDTH = 260;
+const MAX_PREVIEW_WIDTH = 720;
+const COLUMN_RESIZE_WIDTH = 14;
+const WORKSPACE_COLUMN_GAP = 6;
 
 const parts = import.meta.url.split('/');
 const extensionIndex = parts.indexOf('extensions');
@@ -28,6 +40,15 @@ function asString(value, fallback = '') {
     }
 
     return String(value);
+}
+
+function asFiniteNumber(value, fallback = null) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
+function clampNumber(value, min, max) {
+    return Math.min(max, Math.max(min, value));
 }
 
 function isPlainObject(value) {
@@ -125,6 +146,18 @@ function normalizeTemplates(templates) {
     return normalized;
 }
 
+function normalizeLayout(layout) {
+    const source = isPlainObject(layout) ? layout : {};
+    const modalWidth = asFiniteNumber(source.modalWidth);
+    const modalHeight = asFiniteNumber(source.modalHeight);
+
+    return {
+        modalWidth: modalWidth === null ? null : clampNumber(modalWidth, MIN_MODAL_WIDTH, 1600),
+        modalHeight: modalHeight === null ? null : clampNumber(modalHeight, MIN_MODAL_HEIGHT, 1200),
+        previewWidth: clampNumber(asFiniteNumber(source.previewWidth, DEFAULT_LAYOUT.previewWidth), MIN_PREVIEW_WIDTH, MAX_PREVIEW_WIDTH),
+    };
+}
+
 function normalizeBlock(block, index, usedIds) {
     const fallbackId = makeId('block');
     let id = asString(block?.id, fallbackId).trim() || fallbackId;
@@ -205,6 +238,7 @@ function loadSettings() {
     settings.version = SETTINGS_VERSION;
     settings.templates = normalizeTemplates(settings.templates);
     settings.personas = normalizePersonaMap(settings.personas, settings.templates);
+    settings.layout = normalizeLayout(settings.layout);
     settingsLoaded = true;
 
     return settings;
@@ -599,6 +633,7 @@ function getImportedSettings(data) {
         version: SETTINGS_VERSION,
         templates: source.templates,
         personas: source.personas,
+        layout: source.layout,
     };
 
     const normalizedTemplates = normalizeTemplates(imported.templates);
@@ -607,6 +642,7 @@ function getImportedSettings(data) {
         version: SETTINGS_VERSION,
         templates: normalizedTemplates,
         personas: normalizePersonaMap(imported.personas, normalizedTemplates),
+        layout: normalizeLayout(imported.layout),
     };
 }
 
@@ -888,6 +924,222 @@ function renderFields(dlg, avatarId, templateId, refresh) {
     }
 }
 
+function getModalSizeLimits() {
+    const horizontalMargin = window.innerWidth <= 900 ? 32 : 96;
+    const maxWidth = Math.max(360, window.innerWidth - horizontalMargin);
+    const maxHeight = Math.max(320, window.innerHeight - 120);
+
+    return {
+        minWidth: Math.min(MIN_MODAL_WIDTH, maxWidth),
+        maxWidth,
+        minHeight: Math.min(MIN_MODAL_HEIGHT, maxHeight),
+        maxHeight,
+    };
+}
+
+function getPreviewWidthLimits(workspace) {
+    const workspaceWidth = workspace?.getBoundingClientRect().width || 0;
+    const availableMax = workspaceWidth - MIN_EDITOR_WIDTH - COLUMN_RESIZE_WIDTH - (WORKSPACE_COLUMN_GAP * 2);
+    const maxWidth = Math.min(MAX_PREVIEW_WIDTH, Math.max(MIN_PREVIEW_WIDTH, availableMax));
+
+    return {
+        minWidth: MIN_PREVIEW_WIDTH,
+        maxWidth,
+    };
+}
+
+function applyPreviewWidth(dlg, width, { persist = false } = {}) {
+    const workspace = dlg.find('.pb-workspace').get(0);
+    const splitter = dlg.find('#pb_column_resize').get(0);
+
+    if (!workspace) {
+        return;
+    }
+
+    const layout = getSettings().layout;
+    const limits = getPreviewWidthLimits(workspace);
+    const nextWidth = Math.round(clampNumber(width ?? layout.previewWidth, limits.minWidth, limits.maxWidth));
+
+    layout.previewWidth = nextWidth;
+    workspace.style.setProperty('--pb-preview-width', `${nextWidth}px`);
+
+    if (splitter) {
+        splitter.setAttribute('aria-valuemin', String(Math.round(limits.minWidth)));
+        splitter.setAttribute('aria-valuemax', String(Math.round(limits.maxWidth)));
+        splitter.setAttribute('aria-valuenow', String(nextWidth));
+    }
+
+    if (persist) {
+        saveExtensionSettings();
+    }
+}
+
+function applySavedModalSize(dlg) {
+    const modal = dlg.get(0);
+
+    if (!modal) {
+        return;
+    }
+
+    const layout = getSettings().layout;
+    const limits = getModalSizeLimits();
+
+    if (layout.modalWidth !== null) {
+        modal.style.width = `${Math.round(clampNumber(layout.modalWidth, limits.minWidth, limits.maxWidth))}px`;
+    }
+
+    if (layout.modalHeight !== null) {
+        modal.style.height = `${Math.round(clampNumber(layout.modalHeight, limits.minHeight, limits.maxHeight))}px`;
+    }
+}
+
+function addLayoutHandlers(dlg) {
+    const modal = dlg.get(0);
+    const workspace = dlg.find('.pb-workspace').get(0);
+    const splitter = dlg.find('#pb_column_resize').get(0);
+    const cleanups = [];
+    let resizeFrame = null;
+
+    if (!modal || !workspace || !splitter) {
+        return () => {};
+    }
+
+    const addListener = (target, event, handler, options) => {
+        target.addEventListener(event, handler, options);
+        cleanups.push(() => target.removeEventListener(event, handler, options));
+    };
+
+    const syncLayout = () => {
+        applyPreviewWidth(dlg, getSettings().layout.previewWidth);
+    };
+
+    const persistModalSize = () => {
+        const limits = getModalSizeLimits();
+        const rect = modal.getBoundingClientRect();
+        const layout = getSettings().layout;
+        const nextWidth = Math.round(clampNumber(rect.width, limits.minWidth, limits.maxWidth));
+        const nextHeight = Math.round(clampNumber(rect.height, limits.minHeight, limits.maxHeight));
+
+        if (layout.modalWidth !== nextWidth || layout.modalHeight !== nextHeight) {
+            layout.modalWidth = nextWidth;
+            layout.modalHeight = nextHeight;
+            saveExtensionSettings();
+        }
+    };
+
+    applySavedModalSize(dlg);
+    requestAnimationFrame(syncLayout);
+
+    let observerReady = false;
+
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(() => {
+            if (resizeFrame !== null) {
+                cancelAnimationFrame(resizeFrame);
+            }
+
+            resizeFrame = requestAnimationFrame(() => {
+                resizeFrame = null;
+                syncLayout();
+
+                if (!observerReady) {
+                    observerReady = true;
+                    return;
+                }
+
+                persistModalSize();
+            });
+        });
+
+        observer.observe(modal);
+        cleanups.push(() => observer.disconnect());
+    }
+
+    let dragging = false;
+    let dragWorkspaceRect = null;
+
+    const resizeFromClientX = (clientX) => {
+        if (!dragWorkspaceRect) {
+            return;
+        }
+
+        applyPreviewWidth(dlg, dragWorkspaceRect.right - clientX);
+    };
+
+    addListener(splitter, 'pointerdown', (event) => {
+        if (event.button !== undefined && event.button !== 0) {
+            return;
+        }
+
+        dragging = true;
+        dragWorkspaceRect = workspace.getBoundingClientRect();
+        splitter.setPointerCapture(event.pointerId);
+        document.body.classList.add('pb-column-resizing');
+        event.preventDefault();
+    });
+
+    addListener(splitter, 'pointermove', (event) => {
+        if (!dragging) {
+            return;
+        }
+
+        resizeFromClientX(event.clientX);
+    });
+
+    const stopDragging = (event) => {
+        if (!dragging) {
+            return;
+        }
+
+        dragging = false;
+        dragWorkspaceRect = null;
+        document.body.classList.remove('pb-column-resizing');
+
+        if (splitter.hasPointerCapture?.(event.pointerId)) {
+            splitter.releasePointerCapture(event.pointerId);
+        }
+
+        saveExtensionSettings();
+    };
+
+    addListener(splitter, 'pointerup', stopDragging);
+    addListener(splitter, 'pointercancel', stopDragging);
+
+    addListener(splitter, 'keydown', (event) => {
+        const currentWidth = getSettings().layout.previewWidth;
+        let nextWidth = currentWidth;
+
+        if (event.key === 'ArrowLeft') {
+            nextWidth = currentWidth + 24;
+        } else if (event.key === 'ArrowRight') {
+            nextWidth = currentWidth - 24;
+        } else if (event.key === 'Home') {
+            nextWidth = MIN_PREVIEW_WIDTH;
+        } else if (event.key === 'End') {
+            nextWidth = MAX_PREVIEW_WIDTH;
+        } else {
+            return;
+        }
+
+        event.preventDefault();
+        applyPreviewWidth(dlg, nextWidth, { persist: true });
+    });
+
+    addListener(window, 'resize', () => {
+        applySavedModalSize(dlg);
+        syncLayout();
+    });
+
+    return () => {
+        if (resizeFrame !== null) {
+            cancelAnimationFrame(resizeFrame);
+        }
+
+        document.body.classList.remove('pb-column-resizing');
+        cleanups.forEach(cleanup => cleanup());
+    };
+}
+
 function addStaticHandlers(dlg, getSelection, setSelection, refresh) {
     dlg.find('#pb_persona_select').on('change', function () {
         const avatarId = String($(this).val());
@@ -1055,16 +1307,20 @@ async function showPersonaBlocksModal() {
     addStaticHandlers(dlg, getSelection, setSelection, refresh);
     activeModalRefresh = refresh;
     refresh();
+    let cleanupLayoutHandlers = () => {};
 
     try {
-        await callGenericPopup(dlg, POPUP_TYPE.TEXT, '', {
+        const popupPromise = callGenericPopup(dlg, POPUP_TYPE.TEXT, '', {
             wide: true,
             large: true,
             okButton: false,
             cancelButton: 'Close',
             allowVerticalScrolling: true,
         });
+        cleanupLayoutHandlers = addLayoutHandlers(dlg);
+        await popupPromise;
     } finally {
+        cleanupLayoutHandlers();
         activeModalRefresh = null;
     }
 }
