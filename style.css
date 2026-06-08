@@ -2,8 +2,14 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: min(1180px, 92vw);
+    box-sizing: border-box;
+    width: min(1180px, 90vw, calc(100vw - 96px));
+    max-width: 100%;
     min-height: min(760px, 82vh);
+}
+
+.persona-blocks-modal * {
+    box-sizing: border-box;
 }
 
 .pb-header,
@@ -56,6 +62,7 @@
 
 .pb-control select {
     width: 100%;
+    min-width: 0;
 }
 
 .pb-template-actions {
@@ -64,14 +71,16 @@
 
 .pb-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
     gap: 12px;
+    min-width: 0;
     min-height: 0;
     flex: 1;
 }
 
 .pb-editor,
 .pb-preview {
+    min-width: 0;
     min-height: 0;
 }
 
@@ -84,15 +93,21 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    overflow: hidden;
 }
 
 .pb-section-toolbar {
     justify-content: space-between;
     margin-bottom: 8px;
+    min-width: 0;
 }
 
 .pb-section-title {
     font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #pb_fields {
@@ -102,6 +117,7 @@
 }
 
 .pb-field {
+    min-width: 0;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 6px;
     background-color: color-mix(in srgb, var(--SmartThemeBodyColor) 86%, transparent);
@@ -118,6 +134,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
+    flex: 1;
     font-weight: 700;
 }
 
@@ -182,6 +199,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
     padding: 10px;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 6px;
@@ -197,6 +215,26 @@
 
 .pb-persona-name {
     font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#pb_import_current {
+    display: flex;
+    align-items: center;
+    flex: 0 1 min(220px, 62%);
+    gap: 6px;
+    min-height: 30px;
+    min-width: 0;
+    justify-content: center;
+}
+
+#pb_import_current span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #pb_preview_text {
@@ -207,11 +245,24 @@
 }
 
 .pb-apply-row {
-    justify-content: flex-end;
+    justify-content: stretch;
 }
 
 .pb-apply-row .menu_button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
     min-height: 34px;
+    min-width: 0;
+    justify-content: center;
+}
+
+.pb-apply-row .menu_button span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media screen and (max-width: 900px) {
@@ -234,5 +285,9 @@
 
     .pb-template-actions {
         margin-left: 0;
+    }
+
+    #pb_import_current span {
+        display: none;
     }
 }
